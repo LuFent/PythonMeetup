@@ -12,54 +12,58 @@ from .models import Donation
 
 @admin.register(User)
 class UserAdmin(admin.ModelAdmin):
-    readonly_fields = [
-        'telegram_id',
-    ]
+    pass
+    # readonly_fields = [
+    #     'telegram_id',
+    # ]
 
 
 @admin.register(Event)
 class EventAdmin(admin.ModelAdmin):
     raw_id_fields = ('organizer',)
-    readonly_fields = [
-        'status',
-    ]
+    # readonly_fields = [
+    #     'status',
+    # ]
 
 
 @admin.register(Access)
 class AccessAdmin(admin.ModelAdmin):
-    readonly_fields = [
-        'level',
-    ]
+    pass
+    # readonly_fields = [
+    #     'level',
+    # ]
 
 
 @admin.register(Participant)
 class ParticipantAdmin(admin.ModelAdmin):
-    readonly_fields = [
-        'user',
-        'event',
-    ]
+    pass
+    # readonly_fields = [
+    #     'user',
+    #     'event',
+    # ]
 
 
 @admin.register(Section)
 class SectionAdmin(admin.ModelAdmin):
-    readonly_fields = [
-        'event',
-    ]
+    pass
+    # readonly_fields = [
+    #     'event',
+    # ]
 
 
 @admin.register(Block)
 class BlockAdmin(admin.ModelAdmin):
-    readonly_fields = [
-        'section',
-    ]
+    # readonly_fields = [
+    #     'section',
+    # ]
     raw_id_fields = ('moderator',)
 
 
 @admin.register(Presentation)
 class PresentationAdmin(admin.ModelAdmin):
-    readonly_fields = [
-        'block',
-    ]
+    # readonly_fields = [
+    #     'block',
+    # ]
     raw_id_fields = ('speaker',)
 
 
@@ -72,9 +76,10 @@ class ProfileAdmin(admin.ModelAdmin):
 
 @admin.register(Donation)
 class DonationAdmin(admin.ModelAdmin):
-    readonly_fields = [
-        'participant',
-        'event',
-        'reject',
-        'amount',
-    ]
+    pass
+    # readonly_fields = [
+    #     'participant',
+    #     'event',
+    #     'reject',
+    #     'amount',
+    # ]
