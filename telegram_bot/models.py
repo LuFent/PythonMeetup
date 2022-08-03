@@ -1,7 +1,7 @@
 from django.db import models
 
 
-class User(models.Model):
+class BotUser(models.Model):
     name = models.CharField('Имя', max_length=30)
     surname = models.CharField('Фамилия', max_length=50)
     info  = models.TextField('О себе', blank=True)
@@ -23,7 +23,7 @@ class Event(models.Model):
     name = models.CharField('Название', max_length=100)
     date = models.DateField('Дата проведения')
     organizer = models.ForeignKey(
-        User,
+        BotUser,
         related_name='events',
         verbose_name='Организатор',
         null=True,
@@ -58,7 +58,7 @@ class Access(models.Model):
 
 class Participant(models.Model):
     user = models.OneToOneField(
-        User,
+        BotUser,
         related_name='participation',
         verbose_name='Пользователь',
         on_delete=models.CASCADE,
@@ -110,7 +110,7 @@ class Block(models.Model):
     start_time = models.TimeField('Время начала')
     finish_time = models.TimeField('Время завершения')
     moderator = models.ForeignKey(
-        User,
+        BotUser,
         related_name='moderating_blocks',
         verbose_name='Модератор',
         null=True,
@@ -138,7 +138,7 @@ class Presentation(models.Model):
     name = models.CharField('Название', max_length=50)
     info = models.TextField('Подробная информация', blank=True)
     speaker = models.ForeignKey(
-        User,
+        BotUser,
         related_name='presentations',
         verbose_name='Спикер',
         on_delete=models.CASCADE,

@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import User
+from .models import BotUser
 from .models import Event
 from .models import Access
 from .models import Participant
@@ -10,8 +10,8 @@ from .models import Presentation
 from .models import Profile
 from .models import Donation
 
-@admin.register(User)
-class UserAdmin(admin.ModelAdmin):
+@admin.register(BotUser)
+class BotUserAdmin(admin.ModelAdmin):
     pass
     # readonly_fields = [
     #     'telegram_id',
