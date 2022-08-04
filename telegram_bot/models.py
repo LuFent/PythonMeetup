@@ -10,6 +10,7 @@ class BotUser(models.Model):
         max_length=10,
         unique=True
     )
+    company_position = models.CharField('Комания и должность', blank=True, max_length=50)
 
     class Meta:
         verbose_name = 'пользователь'

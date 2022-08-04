@@ -2,6 +2,7 @@ from dotenv import load_dotenv
 import os
 from django.conf import settings
 from telegram import KeyboardButton, Update
+import telegram
 from telegram.ext import Filters
 from telegram.ext import CallbackContext
 from telegram.ext import Updater
@@ -16,6 +17,7 @@ SECTIONS = CURRENT_EVENT.sections.all()
 states_database = {}
 main_menu_keyboard = [['Программа', 'Задать вопрос спикеру', 'Зарегистрироваться'], ['Донат']]
 contact_keyboard = [['Отправить контакты', 'Не отправлять контакты']]
+accept_keyboard = [['Разрешить сохранение своих данных', 'Отказать от сохранения']]
 
 
 def start(update: Update, context: CallbackContext):
@@ -39,8 +41,8 @@ def main_menu(update: Update, context: CallbackContext):
 
     elif user_reply == 'Зарегистрироваться':
         update.message.reply_text(
-            text='Мы сохраним ваши данные',
-            # reply_markup=ReplyKeyboardMarkup(, resize_keyboard=True)
+            text='Введите пожалуйста название компании и вашу должность, желательно в такой порядке и через запятую.',
+            reply_markup=ReplyKeyboardMarkup([['Главное меню']], resize_keyboard=True, one_time_keyboard=True)
         )
         return 'REGISTRATION'
 
@@ -111,22 +113,35 @@ def choose_block(update: Update, context: CallbackContext):
         return 'MAIN_MENU'
 
 
-
-
 def registration(update: Update, context: CallbackContext):
-    if update.message.text:
-        #Логика сохранения данных в БД
-        contact = update.effective_message.contact
-        print(contact)
+    user_reply = update.message.text
+
+    if user_reply:
+        if user_reply == 'В главное меню':
+            update.message.reply_text(
+                text='Возврат в Главное меню',
+                reply_markup=ReplyKeyboardMarkup(main_menu_keyboard, resize_keyboard=True, one_time_keyboard=True)
+                )
+            return 'MAIN_MENU'
         user_name = update.message.from_user.name
         user_lastname = update.message.from_user.last_name
-        user_phonenumber = update.message.from_user
         user_telegram_id = update.message.from_user.id
+        BotUser.objects.create(
+            name=user_name,
+            surname=user_lastname,
+            company_position=update.message.text,
+            telegram_id=user_telegram_id
+        )
+        print(BotUser.objects.all())
         update.message.reply_text(
             text='Регистрация успешна.',
             reply_markup=ReplyKeyboardMarkup(main_menu_keyboard, resize_keyboard=True, one_time_keyboard=True)
         )
         return 'MAIN_MENU'
+
+
+
+
 
 
 def handle_user_reply(update: Update, context: CallbackContext):
