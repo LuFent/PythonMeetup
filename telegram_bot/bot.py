@@ -7,6 +7,12 @@ from telegram.ext import CallbackContext
 from telegram.ext import Updater
 from telegram.ext import CommandHandler, MessageHandler, CallbackQueryHandler
 from telegram import ReplyKeyboardMarkup
+from itertools import islice
+from .models import *
+
+def chunk(list_, size):
+    it = iter(list_)
+    return list(iter(lambda: tuple(islice(list_, size)), ()))
 
 
 states_database = {}

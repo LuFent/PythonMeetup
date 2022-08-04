@@ -19,6 +19,10 @@ class BotUser(models.Model):
         return f'{self.name} {self.surname}'
 
 
+class EventQuerySet(models.QuerySet):
+    def get_current(self):
+        return self.filter(status=True).order_by('date').last()
+
 class Event(models.Model):
     name = models.CharField('Название', max_length=100)
     date = models.DateField('Дата проведения')
@@ -31,6 +35,7 @@ class Event(models.Model):
         on_delete=models.SET_NULL,
     )
     status = models.BooleanField('Активно')
+    objects = EventQuerySet.as_manager()
 
     class Meta:
         verbose_name = 'мероприятие'
