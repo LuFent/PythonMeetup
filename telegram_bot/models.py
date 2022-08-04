@@ -89,7 +89,7 @@ class Participant(models.Model):
         verbose_name_plural = 'участники'
 
     def __str__(self):
-        return self.user
+        return f'{self.level} {self.user}'
 
 
 class Section(models.Model):
@@ -106,7 +106,7 @@ class Section(models.Model):
         verbose_name_plural = 'части'
 
     def __str__(self):
-        return self.name
+        return f'{self.event} {self.name}'
 
 
 class Block(models.Model):
@@ -136,7 +136,7 @@ class Block(models.Model):
         verbose_name_plural = 'блоки'
 
     def __str__(self):
-        return self.name
+        return f'{self.section} | {self.name}'
 
 
 class Presentation(models.Model):
@@ -160,7 +160,7 @@ class Presentation(models.Model):
         verbose_name_plural = 'выступления'
 
     def __str__(self):
-        return self.name
+        return f'{self.block} - {self.name}'
 
 
 class Profile(models.Model):

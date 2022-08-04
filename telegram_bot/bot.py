@@ -6,18 +6,15 @@ from telegram.ext import Filters
 from telegram.ext import CallbackContext
 from telegram.ext import Updater
 from telegram.ext import CommandHandler, MessageHandler, CallbackQueryHandler
-from telegram import ReplyKeyboardMarkup
-from itertools import islice
+from telegram import ReplyKeyboardMarkup, ParseMode
 from .models import *
+from .bot_tools import chunk, build_timetable
 
-def chunk(list_, size):
-    it = iter(list_)
-    return list(iter(lambda: tuple(islice(list_, size)), ()))
-
+CURRENT_EVENT = Event.objects.get_current()
+SECTIONS = CURRENT_EVENT.sections.all()
 
 states_database = {}
 main_menu_keyboard = [['Программа', 'Задать вопрос спикеру', 'Зарегистрироваться'], ['Донат']]
-events_keyboard =  [['Вступительные мероприятия', 'Поток "Эверест"'],['Поток "Альпы"', 'Заключительные мероприятия'], ['В главное меню']] 
 contact_keyboard = [['Отправить контакты', 'Не отправлять контакты']]
 
 
@@ -32,11 +29,13 @@ def start(update: Update, context: CallbackContext):
 def main_menu(update: Update, context: CallbackContext):
     user_reply = update.effective_message.text
     if user_reply == 'Программа' or user_reply == 'Задать вопрос спикеру':
+        events_keyboard = list(map(lambda keyboard_row: [button.name for button in keyboard_row], chunk(CURRENT_EVENT.sections.all(), 2)))
+        events_keyboard.append(['В главное меню'])
         update.message.reply_text(
             text='Выберите пожалуйста, какое направление вас интересует',
             reply_markup=ReplyKeyboardMarkup(events_keyboard, resize_keyboard=True, one_time_keyboard=True)
         )
-        return 'CHOICE_EVENT'
+        return 'CHOOSE_SECTION'
 
     elif user_reply == 'Зарегистрироваться':
         update.message.reply_text(
@@ -52,20 +51,66 @@ def main_menu(update: Update, context: CallbackContext):
         return ''
 
 
-def choice_event(update: Update, context: CallbackContext):
+def choose_section(update: Update, context: CallbackContext):
     user_reply = update.effective_message.text
 
-    if user_reply == 'Вступительные мероприятия':
-        update.message.reply_text(
-            text='Выберите из списка'
-        )
-    
-    elif user_reply == 'В главное меню':
+    if user_reply == 'В главное меню':
         update.message.reply_text(
             text='Возврат в Главное меню',
             reply_markup=ReplyKeyboardMarkup(main_menu_keyboard, resize_keyboard=True, one_time_keyboard=True)
             )
         return 'MAIN_MENU'
+
+    try:
+        chosen_section = SECTIONS.get(name=user_reply)
+        possible_blocks = chosen_section.blocks.all()
+        blocks_keyboard = [[f'{block.name} | {chosen_section.name}'] for block in possible_blocks]
+        blocks_keyboard.append(['В главное меню'])
+        update.message.reply_text(text='Выберите из списка',
+                                  reply_markup=ReplyKeyboardMarkup(blocks_keyboard,
+                                                                   resize_keyboard=True,
+                                                                   one_time_keyboard=True))
+        return 'CHOOSE_BLOCK'
+
+    except Exception:
+        update.message.reply_text(text='Ошибка ❌',
+                                  reply_markup=ReplyKeyboardMarkup(main_menu_keyboard, resize_keyboard=True,
+                                                                   one_time_keyboard=True)
+                                  )
+        return 'MAIN_MENU'
+
+
+    
+def choose_block(update: Update, context: CallbackContext):
+    user_reply = update.effective_message.text
+    if user_reply == 'В главное меню':
+        update.message.reply_text(
+            text='Возврат в Главное меню',
+            reply_markup=ReplyKeyboardMarkup(main_menu_keyboard, resize_keyboard=True, one_time_keyboard=True)
+            )
+        return 'MAIN_MENU'
+    try:
+        chosen_block, chosen_section = map(lambda x: x.strip(), user_reply.split('|'))
+        chosen_section = CURRENT_EVENT.sections.get(name=chosen_section)
+        chosen_block = chosen_section.blocks.get(name=chosen_block)
+
+        blocks_keyboard = [[f'{block.name} | {chosen_section.name}'] for block in chosen_section.blocks.all()]
+        blocks_keyboard.append(['В главное меню'])
+        update.message.reply_text(text=build_timetable(chosen_block),
+                                  parse_mode=ParseMode.MARKDOWN,
+                                  reply_markup=ReplyKeyboardMarkup(blocks_keyboard,
+                                                                   resize_keyboard=True,
+                                                                   one_time_keyboard=True))
+
+        return 'CHOOSE_BLOCK'
+    except Exception:
+        update.message.reply_text(text='Ошибка ❌',
+                                  reply_markup=ReplyKeyboardMarkup(main_menu_keyboard, resize_keyboard=True,
+                                                                   one_time_keyboard=True)
+                                  )
+        return 'MAIN_MENU'
+
+
 
 
 def registration(update: Update, context: CallbackContext):
@@ -104,8 +149,9 @@ def handle_user_reply(update: Update, context: CallbackContext):
     states_functions = {
         'START': start,
         'MAIN_MENU': main_menu,
-        'CHOICE_EVENT': choice_event,
-        'REGISTRATION': registration
+        'CHOOSE_SECTION': choose_section,
+        'REGISTRATION': registration,
+        'CHOOSE_BLOCK': choose_block,
     
     }
 
