@@ -5,11 +5,12 @@ from telegram import KeyboardButton, Update
 import telegram
 from telegram.ext import Filters
 from telegram.ext import CallbackContext
-from telegram.ext import Updater
-from telegram.ext import CommandHandler, MessageHandler, CallbackQueryHandler
-from telegram import ReplyKeyboardMarkup, ParseMode
+from telegram.ext import Updater, filters
+from telegram.ext import CommandHandler, MessageHandler, CallbackQueryHandler, PreCheckoutQueryHandler
+from telegram import ReplyKeyboardMarkup, ParseMode, LabeledPrice
 from .models import *
-from .bot_tools import chunk, build_timetable
+from .bot_tools import *
+
 
 CURRENT_EVENT = Event.objects.get_current()
 SECTIONS = CURRENT_EVENT.sections.all()
@@ -50,7 +51,7 @@ def main_menu(update: Update, context: CallbackContext):
         update.message.reply_text(
             text='Напишите, какую сумму вы хотели бы пожертвовать'
         )
-        return ''
+        return 'DONATION'
 
 
 def choose_section(update: Update, context: CallbackContext):
@@ -82,7 +83,6 @@ def choose_section(update: Update, context: CallbackContext):
         return 'MAIN_MENU'
 
 
-    
 def choose_block(update: Update, context: CallbackContext):
     user_reply = update.effective_message.text
     if user_reply == 'В главное меню':
@@ -175,6 +175,41 @@ def registration_end(update: Update, context: CallbackContext):
         return 'MAIN_MENU'
 
 
+def donate(update: Update, context: CallbackContext):
+    payment_sum = validate_sum(update.message.text)
+
+    chat_id = update.message.chat_id
+    title = f"Донат мероприятию {CURRENT_EVENT}"
+    description = "Добровольное пожертвование организаторам мероприятию"
+    payload = "Custom-Payload"
+    currency = "RUB"
+    prices = [LabeledPrice("Test", payment_sum)]
+
+    context.bot.send_invoice(
+        provider_token='381764678:TEST:40794',
+        chat_id=chat_id,
+        title=title,
+        description=description,
+        payload=payload,
+        currency=currency,
+        prices=prices,
+        start_parameter=None
+    )
+    return 'MAIN_MENU'
+
+def precheckout_callback(update: Update, context: CallbackContext):
+    query = update.pre_checkout_query
+
+    if query.invoice_payload != "Custom-Payload":
+        query.answer(ok=False, error_message="Something went wrong...")
+    else:
+        query.answer(ok=True)
+
+def successful_payment_callback(update: Update, context: CallbackContext):
+    update.message.reply_text("Спасибо за пожертвование <3")
+    return 'MAIN_MENU'
+
+
 def handle_user_reply(update: Update, context: CallbackContext):
     if update.message:
         user_reply = update.message.text
@@ -199,6 +234,7 @@ def handle_user_reply(update: Update, context: CallbackContext):
         'REGISTRATION': registration,
         'REGISTRATION_END': registration_end,
         'CHOOSE_BLOCK': choose_block,
+        'DONATION': donate,
     
     }
 
@@ -216,6 +252,8 @@ def main():
     dispatcher.add_handler(MessageHandler(Filters.text, handle_user_reply))
     dispatcher.add_handler(CallbackQueryHandler(handle_user_reply))
     dispatcher.add_handler(MessageHandler(Filters.contact, registration))
+    dispatcher.add_handler(PreCheckoutQueryHandler(precheckout_callback))
+    #dispatcher.add_handler(MessageHandler(Filters.SUCCESSFUL_PAYMENT, successful_payment_callback))
     updater.start_polling()
 
 
