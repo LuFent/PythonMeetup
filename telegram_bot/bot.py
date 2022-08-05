@@ -127,10 +127,12 @@ def registration(update: Update, context: CallbackContext):
         user_lastname = update.message.from_user.last_name
         user_telegram_id = update.message.from_user.id
         user, is_created = BotUser.objects.get_or_create(
-            name=user_name,
-            surname=user_lastname,
-            company=update.message.text,
-            defaults={'telegram_id':user_telegram_id}
+            defaults={
+                'name': user_name,
+                'surname': user_lastname,
+                'company': update.message.text
+            },
+            telegram_id=user_telegram_id
         )
         if not is_created:
             update.message.reply_text(
