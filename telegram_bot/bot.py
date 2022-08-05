@@ -166,6 +166,10 @@ def registration(update: Update, context: CallbackContext):
             )
             return 'MAIN_MENU'
         elif is_created:
+            Participant.objects.create(
+                user=user,
+                event=CURRENT_EVENT
+            )
             update.message.reply_text(
                 text='Введите пожалуйста вашу должность.',
                 reply_markup=ReplyKeyboardMarkup([['Назад', 'В главное меню']], resize_keyboard=True, one_time_keyboard=True)
@@ -190,9 +194,9 @@ def registration_end(update: Update, context: CallbackContext):
                 reply_markup=ReplyKeyboardMarkup(main_menu_keyboard, resize_keyboard=True, one_time_keyboard=True)
                 )
             return 'REGISTRATION'
-        user_db_info = BotUser.objects.get(telegram_id=update.message.from_user.id)
-        user_db_info.position = user_reply
-        user_db_info.save()
+        user = BotUser.objects.get(telegram_id=update.message.from_user.id)
+        user.position = user_reply
+        user.save()
         update.message.reply_text(
             text='Вы успешно зарегистрированы.',
             reply_markup=ReplyKeyboardMarkup(main_menu_keyboard, resize_keyboard=True, one_time_keyboard=True)

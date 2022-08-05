@@ -51,7 +51,7 @@ class Access(models.Model):
     level = models.CharField(
         'Уровень доступа',
         max_length=20,
-        unique=True,
+        unique=True
     )
     info = models.TextField('Доступные функции', blank=True)
 
@@ -84,6 +84,7 @@ class Participant(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         db_index=True,
+        default=1
     )
 
     class Meta:
