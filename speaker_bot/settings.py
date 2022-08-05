@@ -20,6 +20,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 
 TG_API_TOKEN = os.getenv('TG_API_TOKEN')
+YOO_MONEY_TOKEN = os.getenv('YOO_MONEY_TOKEN')
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.0/howto/deployment/checklist/

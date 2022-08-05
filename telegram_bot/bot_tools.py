@@ -20,5 +20,22 @@ def build_timetable(block):
 
         timetable += '\n'
 
-
     return timetable
+
+
+def validate_sum(payment_sum):
+    try:
+        payment_sum = int(payment_sum)
+    except Exception:
+        return "Введите число"
+
+    if payment_sum < 10:
+        return "Слишком маленькая сумма"
+
+    if payment_sum > 1000:
+        return "Слишком большая сумма"
+
+    return payment_sum*100
+
+
+
