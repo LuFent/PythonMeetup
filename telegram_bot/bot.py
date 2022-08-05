@@ -64,11 +64,21 @@ def choose_section(update: Update, context: CallbackContext):
             )
         return 'MAIN_MENU'
 
+    if user_reply == 'Назад':
+        events_keyboard = list(map(lambda keyboard_row: [button.name for button in keyboard_row],
+                                   chunk(CURRENT_EVENT.sections.all(), 2)))
+        events_keyboard.append(['В главное меню'])
+        update.message.reply_text(
+            text='Возврат к списку частей',
+            reply_markup=ReplyKeyboardMarkup(events_keyboard, resize_keyboard=True, one_time_keyboard=True)
+            )
+        return 'CHOOSE_SECTION'
+
     try:
         chosen_section = SECTIONS.get(name=user_reply)
         possible_blocks = chosen_section.blocks.all()
-        blocks_keyboard = [[f'{block.name} | {chosen_section.name}'] for block in possible_blocks]
-        blocks_keyboard.append(['В главное меню'])
+        blocks_keyboard = [[f'{block.name} | {chosen_section.name}'] for block in chosen_section.blocks.all()]
+        blocks_keyboard.append(['В главное меню', 'Назад'])
         update.message.reply_text(text='Выберите из списка',
                                   reply_markup=ReplyKeyboardMarkup(blocks_keyboard,
                                                                    resize_keyboard=True,
@@ -91,13 +101,24 @@ def choose_block(update: Update, context: CallbackContext):
             reply_markup=ReplyKeyboardMarkup(main_menu_keyboard, resize_keyboard=True, one_time_keyboard=True)
             )
         return 'MAIN_MENU'
+
+    if user_reply == 'Назад':
+        events_keyboard = list(map(lambda keyboard_row: [button.name for button in keyboard_row],
+                                   chunk(CURRENT_EVENT.sections.all(), 2)))
+        events_keyboard.append(['В главное меню'])
+        update.message.reply_text(
+            text='Возврат к списку частей',
+            reply_markup=ReplyKeyboardMarkup(events_keyboard, resize_keyboard=True, one_time_keyboard=True)
+            )
+        return 'CHOOSE_SECTION'
+
     try:
         chosen_block, chosen_section = map(lambda x: x.strip(), user_reply.split('|'))
         chosen_section = CURRENT_EVENT.sections.get(name=chosen_section)
         chosen_block = chosen_section.blocks.get(name=chosen_block)
 
         blocks_keyboard = [[f'{block.name} | {chosen_section.name}'] for block in chosen_section.blocks.all()]
-        blocks_keyboard.append(['В главное меню'])
+        blocks_keyboard.append(['В главное меню', 'Назад'])
         update.message.reply_text(text=build_timetable(chosen_block),
                                   parse_mode=ParseMode.MARKDOWN,
                                   reply_markup=ReplyKeyboardMarkup(blocks_keyboard,
@@ -105,6 +126,7 @@ def choose_block(update: Update, context: CallbackContext):
                                                                    one_time_keyboard=True))
 
         return 'CHOOSE_BLOCK'
+
     except Exception:
         update.message.reply_text(text='Ошибка ❌',
                                   reply_markup=ReplyKeyboardMarkup(main_menu_keyboard, resize_keyboard=True,
@@ -209,7 +231,10 @@ def precheckout_callback(update: Update, context: CallbackContext):
         query.answer(ok=True)
 
 def successful_payment_callback(update: Update, context: CallbackContext):
-    update.message.reply_text("Спасибо за пожертвование <3")
+    update.message.reply_text(
+        text='Спасибо за пожертвование <3',
+        reply_markup=ReplyKeyboardMarkup(main_menu_keyboard, resize_keyboard=True, one_time_keyboard=True)
+    )
     return 'MAIN_MENU'
 
 
@@ -256,7 +281,7 @@ def main():
     dispatcher.add_handler(CallbackQueryHandler(handle_user_reply))
     dispatcher.add_handler(MessageHandler(Filters.contact, registration))
     dispatcher.add_handler(PreCheckoutQueryHandler(precheckout_callback))
-    #dispatcher.add_handler(MessageHandler(Filters.SUCCESSFUL_PAYMENT, successful_payment_callback))
+    dispatcher.add_handler(MessageHandler(Filters.successful_payment, successful_payment_callback))
     updater.start_polling()
 
 
