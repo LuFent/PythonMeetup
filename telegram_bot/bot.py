@@ -5,7 +5,7 @@ from telegram import KeyboardButton, Update
 import telegram
 from telegram.ext import Filters
 from telegram.ext import CallbackContext
-from telegram.ext import Updater
+from telegram.ext import Updater, filters
 from telegram.ext import CommandHandler, MessageHandler, CallbackQueryHandler, PreCheckoutQueryHandler
 from telegram import ReplyKeyboardMarkup, ParseMode, LabeledPrice
 from .models import *
@@ -42,7 +42,7 @@ def main_menu(update: Update, context: CallbackContext):
 
     elif user_reply == 'Зарегистрироваться':
         update.message.reply_text(
-            text='Введите пожалуйста название компании и вашу должность, желательно в такой порядке и через запятую.',
+            text='Введите пожалуйста название компании, в которой вы работаете.',
             reply_markup=ReplyKeyboardMarkup([['Главное меню']], resize_keyboard=True, one_time_keyboard=True)
         )
         return 'REGISTRATION'
@@ -123,18 +123,51 @@ def registration(update: Update, context: CallbackContext):
                 reply_markup=ReplyKeyboardMarkup(main_menu_keyboard, resize_keyboard=True, one_time_keyboard=True)
                 )
             return 'MAIN_MENU'
-        user_name = update.message.from_user.name
+        user_name = update.message.from_user.first_name
         user_lastname = update.message.from_user.last_name
         user_telegram_id = update.message.from_user.id
-        BotUser.objects.create(
+        user, is_created = BotUser.objects.get_or_create(
             name=user_name,
             surname=user_lastname,
-            company_position=update.message.text,
-            telegram_id=user_telegram_id
+            company=update.message.text,
+            defaults={'telegram_id':user_telegram_id}
         )
-        print(BotUser.objects.all())
+        if not is_created:
+            update.message.reply_text(
+                text='Вы уже зарегистрированы.',
+                reply_markup=ReplyKeyboardMarkup(main_menu_keyboard, resize_keyboard=True, one_time_keyboard=True)
+            )
+            return 'MAIN_MENU'
+        elif is_created:
+            update.message.reply_text(
+                text='Введите пожалуйста вашу должность.',
+                reply_markup=ReplyKeyboardMarkup([['Назад', 'В главное меню']], resize_keyboard=True, one_time_keyboard=True)
+            )
+            return 'REGISTRATION_END'
+
+
+def registration_end(update: Update, context: CallbackContext):
+    user_reply = update.message.text
+
+    if user_reply:
+        if user_reply == 'В главное меню':
+            update.message.reply_text(
+                text='Возврат в Главное меню',
+                reply_markup=ReplyKeyboardMarkup(main_menu_keyboard, resize_keyboard=True, one_time_keyboard=True)
+                )
+            return 'MAIN_MENU'
+
+        elif user_reply == 'Назад':
+            update.message.reply_text(
+                text='Введите название компании.',
+                reply_markup=ReplyKeyboardMarkup(main_menu_keyboard, resize_keyboard=True, one_time_keyboard=True)
+                )
+            return 'REGISTRATION'
+        user_db_info = BotUser.objects.get(telegram_id=update.message.from_user.id)
+        user_db_info.position = user_reply
+        user_db_info.save()
         update.message.reply_text(
-            text='Регистрация успешна.',
+            text='Вы успешно зарегистрированы.',
             reply_markup=ReplyKeyboardMarkup(main_menu_keyboard, resize_keyboard=True, one_time_keyboard=True)
         )
         return 'MAIN_MENU'
@@ -160,6 +193,7 @@ def donate(update: Update, context: CallbackContext):
         prices=prices,
         start_parameter=None
     )
+    return 'MAIN_MENU'
 
 def precheckout_callback(update: Update, context: CallbackContext):
     query = update.pre_checkout_query
@@ -168,6 +202,11 @@ def precheckout_callback(update: Update, context: CallbackContext):
         query.answer(ok=False, error_message="Something went wrong...")
     else:
         query.answer(ok=True)
+
+def successful_payment_callback(update: Update, context: CallbackContext):
+    update.message.reply_text("Спасибо за пожертвование <3")
+    return 'MAIN_MENU'
+
 
 def handle_user_reply(update: Update, context: CallbackContext):
     if update.message:
@@ -191,6 +230,7 @@ def handle_user_reply(update: Update, context: CallbackContext):
         'MAIN_MENU': main_menu,
         'CHOOSE_SECTION': choose_section,
         'REGISTRATION': registration,
+        'REGISTRATION_END': registration_end,
         'CHOOSE_BLOCK': choose_block,
         'DONATION': donate,
     
@@ -211,6 +251,7 @@ def main():
     dispatcher.add_handler(CallbackQueryHandler(handle_user_reply))
     dispatcher.add_handler(MessageHandler(Filters.contact, registration))
     dispatcher.add_handler(PreCheckoutQueryHandler(precheckout_callback))
+    #dispatcher.add_handler(MessageHandler(Filters.SUCCESSFUL_PAYMENT, successful_payment_callback))
     updater.start_polling()
 
 
