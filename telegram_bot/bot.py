@@ -206,7 +206,10 @@ def precheckout_callback(update: Update, context: CallbackContext):
         query.answer(ok=True)
 
 def successful_payment_callback(update: Update, context: CallbackContext):
-    update.message.reply_text("Спасибо за пожертвование <3")
+    update.message.reply_text(
+        text='Спасибо за пожертвование <3',
+        reply_markup=ReplyKeyboardMarkup(main_menu_keyboard, resize_keyboard=True, one_time_keyboard=True)
+    )
     return 'MAIN_MENU'
 
 
@@ -253,7 +256,7 @@ def main():
     dispatcher.add_handler(CallbackQueryHandler(handle_user_reply))
     dispatcher.add_handler(MessageHandler(Filters.contact, registration))
     dispatcher.add_handler(PreCheckoutQueryHandler(precheckout_callback))
-    #dispatcher.add_handler(MessageHandler(Filters.SUCCESSFUL_PAYMENT, successful_payment_callback))
+    dispatcher.add_handler(MessageHandler(Filters.successful_payment, successful_payment_callback))
     updater.start_polling()
 
 
