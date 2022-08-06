@@ -16,6 +16,12 @@ from .bot_tools import *
 CURRENT_EVENT = Event.objects.get_current()
 SECTIONS = CURRENT_EVENT.sections.all()
 
+VISITOR = Access.objects.get(level="Посетитель")
+SPEAKER = Access.objects.get(level="Спикер")
+ORGANIZER = Access.objects.get(level="Организатор")
+MODERATOR = Access.objects.get(level="Модератор")
+
+
 states_database = {}
 main_menu_keyboard = [['Программа', 'Задать вопрос спикеру', 'Познакомиться'], ['Донат']]
 contact_keyboard = [['Отправить контакты', 'Не отправлять контакты']]
@@ -27,6 +33,16 @@ def start(update: Update, context: CallbackContext):
         text='Здравствуйте. Это официальный бот по поддержке участников 🤖.',
         reply_markup=ReplyKeyboardMarkup(main_menu_keyboard, resize_keyboard=True, one_time_keyboard=True)
     )
+
+    user, created =BotUser.objects.get_or_create(telegram_id=update.message.from_user.id)
+
+    if created:
+        Participant.objects.create(
+            user=user,
+            event=CURRENT_EVENT,
+            level=VISITOR
+        )
+
     return 'MAIN_MENU'
 
 
@@ -312,16 +328,16 @@ def registration(update: Update, context: CallbackContext):
         user_name = update.message.from_user.first_name
         user_lastname = update.message.from_user.last_name
         user_telegram_id = update.message.from_user.id
-        user, is_created = BotUser.objects.get_or_create(
-            defaults={
-                'name': user_name,
-                'surname': user_lastname,
-                'company': update.message.text
-            },
+
+        user = BotUser.objects.get(
             telegram_id=user_telegram_id
         )
-        if not is_created:
-            user = BotUser.objects.get(telegram_id=user_telegram_id)
+        user.name = user_name
+        user.surname = user_lastname
+        user.company = user_reply
+        user.save()
+
+        if user.position:
             update.message.reply_text(
                 text=f'Вы уже зарегистрированы со следующими данными: \
                     {user.name} {user.surname} \
@@ -329,16 +345,13 @@ def registration(update: Update, context: CallbackContext):
                 reply_markup=ReplyKeyboardMarkup(main_menu_keyboard, resize_keyboard=True, one_time_keyboard=True)
             )
             return 'MAIN_MENU'
-        elif is_created:
-            Participant.objects.create(
-                user=user,
-                event=CURRENT_EVENT
-            )
-            update.message.reply_text(
-                text='Введите пожалуйста вашу должность.',
-                reply_markup=ReplyKeyboardMarkup([['Назад', 'В главное меню']], resize_keyboard=True, one_time_keyboard=True)
-            )
-            return 'REGISTRATION_END'
+
+
+        update.message.reply_text(
+            text='Введите пожалуйста вашу должность.',
+            reply_markup=ReplyKeyboardMarkup([['Назад', 'В главное меню']], resize_keyboard=True, one_time_keyboard=True)
+        )
+        return 'REGISTRATION_END'
 
 
 def registration_end(update: Update, context: CallbackContext):

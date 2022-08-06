@@ -38,3 +38,25 @@ def validate_sum(payment_sum):
     return payment_sum*100
 
 
+def get_users_ids(event):
+    participants = event.participants.select_related('user')
+    participants_ids = [participant.user.telegram_id for participant in participants]
+    return participants_ids
+
+def get_visitors_ids(event):
+    visitor_level = Access.objects.get(level="Посетитель")
+    participants = event.participants.select_related('user').filter(level=visitor_level)
+    participants_ids = [participant.user.telegram_id for participant in participants]
+    return participants_ids
+
+def get_speakers_ids(event):
+    visitor_level = Access.objects.get(level="Спикер")
+    participants = event.participants.select_related('user').filter(level=visitor_level)
+    participants_ids = [participant.user.telegram_id for participant in participants]
+    return participants_ids
+
+def get_moderators_ids(event):
+    visitor_level = Access.objects.get(level="Модератор")
+    participants = event.participants.select_related('user').filter(level=visitor_level)
+    participants_ids = [participant.user.telegram_id for participant in participants]
+    return participants_ids
