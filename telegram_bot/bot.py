@@ -16,7 +16,7 @@ CURRENT_EVENT = Event.objects.get_current()
 SECTIONS = CURRENT_EVENT.sections.all()
 
 states_database = {}
-main_menu_keyboard = [['Программа', 'Задать вопрос спикеру', 'Зарегистрироваться'], ['Донат']]
+main_menu_keyboard = [['Программа', 'Задать вопрос спикеру', 'Познакомиться'], ['Донат']]
 contact_keyboard = [['Отправить контакты', 'Не отправлять контакты']]
 accept_keyboard = [['Разрешить сохранение своих данных', 'Отказать от сохранения']]
 
@@ -40,7 +40,7 @@ def main_menu(update: Update, context: CallbackContext):
         )
         return 'CHOOSE_SECTION'
 
-    elif user_reply == 'Зарегистрироваться':
+    elif user_reply == 'Познакомиться':
         update.message.reply_text(
             text='Введите пожалуйста название компании, в которой вы работаете.',
             reply_markup=ReplyKeyboardMarkup([['Главное меню']], resize_keyboard=True, one_time_keyboard=True)
@@ -157,12 +157,19 @@ def registration(update: Update, context: CallbackContext):
             telegram_id=user_telegram_id
         )
         if not is_created:
+            user = BotUser.objects.get(telegram_id=user_telegram_id)
             update.message.reply_text(
-                text='Вы уже зарегистрированы.',
+                text=f'Вы уже зарегистрированы со следующими данными: \
+                    {user.name} {user.surname} \
+                    \nРаботаете в {user.company} на должности {user.position}',
                 reply_markup=ReplyKeyboardMarkup(main_menu_keyboard, resize_keyboard=True, one_time_keyboard=True)
             )
             return 'MAIN_MENU'
         elif is_created:
+            Participant.objects.create(
+                user=user,
+                event=CURRENT_EVENT
+            )
             update.message.reply_text(
                 text='Введите пожалуйста вашу должность.',
                 reply_markup=ReplyKeyboardMarkup([['Назад', 'В главное меню']], resize_keyboard=True, one_time_keyboard=True)
@@ -187,9 +194,9 @@ def registration_end(update: Update, context: CallbackContext):
                 reply_markup=ReplyKeyboardMarkup(main_menu_keyboard, resize_keyboard=True, one_time_keyboard=True)
                 )
             return 'REGISTRATION'
-        user_db_info = BotUser.objects.get(telegram_id=update.message.from_user.id)
-        user_db_info.position = user_reply
-        user_db_info.save()
+        user = BotUser.objects.get(telegram_id=update.message.from_user.id)
+        user.position = user_reply
+        user.save()
         update.message.reply_text(
             text='Вы успешно зарегистрированы.',
             reply_markup=ReplyKeyboardMarkup(main_menu_keyboard, resize_keyboard=True, one_time_keyboard=True)
