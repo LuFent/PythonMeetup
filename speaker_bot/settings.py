@@ -44,7 +44,6 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'telegram_bot',
-    'django_object_actions',
 ]
 
 MIDDLEWARE = [
