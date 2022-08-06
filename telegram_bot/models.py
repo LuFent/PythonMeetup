@@ -1,5 +1,7 @@
 from django.db import models
 
+from django.utils.html import format_html
+
 
 class BotUser(models.Model):
     name = models.CharField('Имя', max_length=30)
@@ -38,6 +40,17 @@ class Event(models.Model):
     )
     status = models.BooleanField('Активно')
     objects = EventQuerySet.as_manager()
+
+    def admin_unit_details(self):  # Button for admin to get to API
+        return format_html(u'<div class="admin-message-container"><textarea type="text" id="MessageText" value=""></textarea> <div class="message-button-container"> ' 
+                           u'<a href="#" onclick="SendMessage()" class="button admin-message-button" id="id_admin_send_message">Отправить сообщение всем пользователям</a>'
+                           u'<a href="#" onclick="SendMessage()" class="button admin-message-button" id="id_admin_send_message">Отправить сообщение всем поситителям</a>'
+                           u'<a href="#" onclick="SendMessage()" class="button admin-message-button" id="id_admin_send_message">Отправить сообщение всем модераторам</a>'
+                           u'<a href="#" onclick="SendMessage()" class="button admin-message-button" id="id_admin_send_message">Отправить сообщение всем спикерам</a>'
+                           u'</div> </div>')
+
+    admin_unit_details.allow_tags = True
+    admin_unit_details.short_description = "Unit Details"
 
     class Meta:
         verbose_name = 'мероприятие'
