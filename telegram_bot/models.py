@@ -211,3 +211,19 @@ class Donation(models.Model):
 
     def __str__(self):
         return f'{self.participant} {self.amount}'
+
+
+class Question(models.Model):
+    text = models.TextField('Текст вопроса')
+    user = models.ForeignKey(
+        Participant,
+        verbose_name='От кого вопрос',
+        related_name='question_from',
+        on_delete=models.CASCADE
+    )
+    speaker = models.ForeignKey(
+        Participant,
+        verbose_name='Вопрос кому',
+        related_name='question_for',
+        on_delete=models.CASCADE
+    )
