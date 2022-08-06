@@ -9,6 +9,7 @@ from .models import Block
 from .models import Presentation
 from .models import Profile
 from .models import Donation
+from .models import Question
 
 
 @admin.register(BotUser)
@@ -91,3 +92,6 @@ class DonationAdmin(admin.ModelAdmin):
     #     'amount',
     # ]
 
+@admin.register(Question)
+class QuestionAdmin(admin.ModelAdmin):
+    pass

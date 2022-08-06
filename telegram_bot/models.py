@@ -147,6 +147,15 @@ class Block(models.Model):
         on_delete=models.RESTRICT,
     )
 
+    speaker = models.ForeignKey(
+        Participant,
+        verbose_name='Спикер',
+        related_name='speaker',
+        on_delete=models.CASCADE,
+        blank=True,
+        null=True
+    )
+
     class Meta:
         verbose_name = 'блок'
         verbose_name_plural = 'блоки'
@@ -227,12 +236,14 @@ class Donation(models.Model):
 
 
 class Question(models.Model):
-    text = models.TextField('Текст вопроса')
+    text = models.TextField('Текст вопроса', blank=True)
     user = models.ForeignKey(
         Participant,
         verbose_name='От кого вопрос',
         related_name='question_from',
-        on_delete=models.CASCADE
+        on_delete=models.CASCADE,
+        blank=True,
+        null=True
     )
     speaker = models.ForeignKey(
         Participant,
@@ -240,3 +251,6 @@ class Question(models.Model):
         related_name='question_for',
         on_delete=models.CASCADE
     )
+
+    def __str__(self):
+        return f'Вопрос для {self.speaker.user}'
