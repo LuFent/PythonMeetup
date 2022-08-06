@@ -38,4 +38,3 @@ def validate_sum(payment_sum):
     return payment_sum*100
 
 
-

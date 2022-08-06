@@ -10,6 +10,7 @@ from .models import Presentation
 from .models import Profile
 from .models import Donation
 
+
 @admin.register(BotUser)
 class BotUserAdmin(admin.ModelAdmin):
     pass
@@ -18,12 +19,18 @@ class BotUserAdmin(admin.ModelAdmin):
     # ]
 
 
+
 @admin.register(Event)
 class EventAdmin(admin.ModelAdmin):
     raw_id_fields = ('organizer',)
+    readonly_fields = ('admin_unit_details',)
+
     # readonly_fields = [
     #     'status',
     # ]
+    class Media:
+        js = ('admin_custom/myjs.js', )  # in static
+        css = {'all': ('admin_custom/mycss.css',)}
 
 
 @admin.register(Access)
@@ -83,3 +90,4 @@ class DonationAdmin(admin.ModelAdmin):
     #     'reject',
     #     'amount',
     # ]
+

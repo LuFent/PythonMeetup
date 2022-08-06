@@ -1,0 +1,23 @@
+#MessageText
+{
+    height:100px;
+    width: 300px;
+}
+
+.admin-message-container
+{
+ display: flex;
+  justify-content: flex-start;
+}
+
+.message-button-container
+{
+ display: flex;
+ flex-direction: column;
+ justify-content: space-between;
+}
+
+.admin-message-button
+{
+    flex-grow: 1;
+}
