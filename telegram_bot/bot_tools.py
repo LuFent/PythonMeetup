@@ -38,3 +38,7 @@ def validate_sum(payment_sum):
     return payment_sum*100
 
 
+def get_users_ids(event):
+    participants = event.participants.select_related('user')
+    ids = [participant.user.telegram_id for participant in participants]
+    print(ids)

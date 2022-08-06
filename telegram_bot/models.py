@@ -4,8 +4,8 @@ from django.utils.html import format_html
 
 
 class BotUser(models.Model):
-    name = models.CharField('Имя', max_length=30)
-    surname = models.CharField('Фамилия', max_length=50)
+    name = models.CharField('Имя', max_length=30, blank=True)
+    surname = models.CharField('Фамилия', max_length=50, blank=True)
     info  = models.TextField('О себе', blank=True)
     telegram_id = models.CharField(
         'ID в Telegram',
@@ -20,7 +20,9 @@ class BotUser(models.Model):
         verbose_name_plural = 'пользователи'
 
     def __str__(self):
-        return f'{self.name} {self.surname}'
+        if self.name and self.surname:
+            return f'{self.name} {self.surname}'
+        return f'User {self.telegram_id}'
 
 
 class EventQuerySet(models.QuerySet):
@@ -28,7 +30,7 @@ class EventQuerySet(models.QuerySet):
         return self.filter(status=True).order_by('date').last()
 
 class Event(models.Model):
-    name = models.CharField('Название', max_length=100)
+    name = models.CharField('Название', max_length=100, unique=True)
     date = models.DateField('Дата проведения')
     organizer = models.ForeignKey(
         BotUser,
@@ -43,14 +45,14 @@ class Event(models.Model):
 
     def admin_unit_details(self):  # Button for admin to get to API
         return format_html(u'<div class="admin-message-container"><textarea type="text" id="MessageText" value=""></textarea> <div class="message-button-container"> ' 
-                           u'<a href="#" onclick="SendMessage()" class="button admin-message-button" id="id_admin_send_message">Отправить сообщение всем пользователям</a>'
-                           u'<a href="#" onclick="SendMessage()" class="button admin-message-button" id="id_admin_send_message">Отправить сообщение всем поситителям</a>'
-                           u'<a href="#" onclick="SendMessage()" class="button admin-message-button" id="id_admin_send_message">Отправить сообщение всем модераторам</a>'
-                           u'<a href="#" onclick="SendMessage()" class="button admin-message-button" id="id_admin_send_message">Отправить сообщение всем спикерам</a>'
+                           u'<a href="#" onclick="SendMessage(1)" class="button admin-message-button" id="id_admin_send_message">Отправить сообщение всем пользователям</a>'
+                           u'<a href="#" onclick="SendMessage(2)" class="button admin-message-button" id="id_admin_send_message">Отправить сообщение всем посетителям</a>'
+                           u'<a href="#" onclick="SendMessage(3)" class="button admin-message-button" id="id_admin_send_message">Отправить сообщение всем модераторам</a>'
+                           u'<a href="#" onclick="SendMessage(4)" class="button admin-message-button" id="id_admin_send_message">Отправить сообщение всем спикерам</a>'
                            u'</div> </div>')
 
     admin_unit_details.allow_tags = True
-    admin_unit_details.short_description = "Unit Details"
+    admin_unit_details.short_description = "Рассылка сообщений"
 
     class Meta:
         verbose_name = 'мероприятие'

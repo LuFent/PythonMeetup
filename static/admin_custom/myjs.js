@@ -16,10 +16,10 @@ function getCookie(name) {
 }
 
 
-function SendMessage() {
+function SendMessage(toWhom) {
 
 	var messageText = document.getElementById("MessageText").value;
-	var eventId = document.getElementById("id_name").value;
+	var eventName = document.getElementById("id_name").value;
 
     const csrftoken = getCookie('csrftoken');
     var xhr = new XMLHttpRequest();
@@ -33,6 +33,6 @@ function SendMessage() {
         console.log(json.email + ", " + json.password);
     }
     };
-    var data = JSON.stringify({"message_text": messageText, "event_id": eventId});
+    var data = JSON.stringify({"message_text": messageText, "event_name": eventName, "to_whom": toWhom});
     xhr.send(data);
     }
