@@ -13,15 +13,6 @@ from .models import *
 from .bot_tools import *
 
 
-CURRENT_EVENT = Event.objects.get_current()
-SECTIONS = CURRENT_EVENT.sections.all()
-
-VISITOR = Access.objects.get(level="Посетитель")
-SPEAKER = Access.objects.get(level="Спикер")
-ORGANIZER = Access.objects.get(level="Организатор")
-MODERATOR = Access.objects.get(level="Модератор")
-
-
 states_database = {}
 main_menu_keyboard = [['Программа', 'Задать вопрос спикеру', 'Познакомиться'], ['Донат']]
 contact_keyboard = [['Отправить контакты', 'Не отправлять контакты']]
@@ -29,27 +20,39 @@ accept_keyboard = [['Разрешить сохранение своих данн
 
 
 def start(update: Update, context: CallbackContext):
+    current_event = Event.objects.get_current()
+    if not current_event:
+        update.message.reply_text(
+            text='Здравствуйте. Это официальный бот по поддержке участников. Необходимо создать мероприятие.',
+        )
+        return
+    context.user_data['current_event'] = current_event
+    context.user_data['sections'] = current_event.sections.all()
+
+    visitor, _ = Access.objects.get_or_create(level="Посетитель")
+    speaker, _ = Access.objects.get_or_create(level="Спикер")
+    organizer, _ = Access.objects.get_or_create(level="Организатор")
+    moderator, _ = Access.objects.get_or_create(level="Модератор")
+
+    user, created =BotUser.objects.get_or_create(telegram_id=update.message.from_user.id)
+    if created:
+        Participant.objects.create(
+            user=user,
+            event=current_event,
+            level=visitor,
+        )
     update.message.reply_text(
         text='Здравствуйте. Это официальный бот по поддержке участников 🤖.',
         reply_markup=ReplyKeyboardMarkup(main_menu_keyboard, resize_keyboard=True, one_time_keyboard=True)
     )
-
-    user, created =BotUser.objects.get_or_create(telegram_id=update.message.from_user.id)
-
-    if created:
-        Participant.objects.create(
-            user=user,
-            event=CURRENT_EVENT,
-            level=VISITOR
-        )
-
     return 'MAIN_MENU'
 
 
 def main_menu(update: Update, context: CallbackContext):
     user_reply = update.effective_message.text
+    current_event = context.user_data['current_event']
     if user_reply == 'Программа':
-        events_keyboard = list(map(lambda keyboard_row: [button.name for button in keyboard_row], chunk(CURRENT_EVENT.sections.all(), 2)))
+        events_keyboard = list(map(lambda keyboard_row: [button.name for button in keyboard_row], chunk(current_event.sections.all(), 2)))
         events_keyboard.append(['В главное меню'])
         update.message.reply_text(
             text='Выберите пожалуйста, какое направление вас интересует',
@@ -58,7 +61,7 @@ def main_menu(update: Update, context: CallbackContext):
         return 'CHOOSE_SECTION'
 
     elif user_reply == 'Задать вопрос спикеру':
-        events_keyboard = list(map(lambda keyboard_row: [button.name for button in keyboard_row], chunk(CURRENT_EVENT.sections.all(), 2)))
+        events_keyboard = list(map(lambda keyboard_row: [button.name for button in keyboard_row], chunk(current_event.sections.all(), 2)))
         events_keyboard.append(['В главное меню'])
         update.message.reply_text(
             text='Выберите пожалуйста, какое направление вас интересует',
@@ -82,7 +85,8 @@ def main_menu(update: Update, context: CallbackContext):
 
 def choose_section(update: Update, context: CallbackContext):
     user_reply = update.effective_message.text
-
+    current_event = context.user_data['current_event']
+    sections = context.user_data['sections']
     if user_reply == 'В главное меню':
         update.message.reply_text(
             text='Возврат в Главное меню',
@@ -92,7 +96,7 @@ def choose_section(update: Update, context: CallbackContext):
 
     if user_reply == 'Назад':
         events_keyboard = list(map(lambda keyboard_row: [button.name for button in keyboard_row],
-                                   chunk(CURRENT_EVENT.sections.all(), 2)))
+                                   chunk(current_event.sections.all(), 2)))
         events_keyboard.append(['В главное меню'])
         update.message.reply_text(
             text='Возврат к списку частей',
@@ -101,7 +105,7 @@ def choose_section(update: Update, context: CallbackContext):
         return 'CHOOSE_SECTION'
 
     try:
-        chosen_section = SECTIONS.get(name=user_reply)
+        chosen_section = sections.get(name=user_reply)
         possible_blocks = chosen_section.blocks.all()
         blocks_keyboard = [[f'{block.name} | {chosen_section.name}'] for block in chosen_section.blocks.all()]
         blocks_keyboard.append(['В главное меню', 'Назад'])
@@ -121,6 +125,7 @@ def choose_section(update: Update, context: CallbackContext):
 
 def choose_block(update: Update, context: CallbackContext):
     user_reply = update.effective_message.text
+    current_event = context.user_data['current_event']
     if user_reply == 'В главное меню':
         update.message.reply_text(
             text='Возврат в Главное меню',
@@ -130,7 +135,7 @@ def choose_block(update: Update, context: CallbackContext):
 
     if user_reply == 'Назад':
         events_keyboard = list(map(lambda keyboard_row: [button.name for button in keyboard_row],
-                                   chunk(CURRENT_EVENT.sections.all(), 2)))
+                                   chunk(current_event.sections.all(), 2)))
         events_keyboard.append(['В главное меню'])
         update.message.reply_text(
             text='Возврат к списку частей',
@@ -140,7 +145,7 @@ def choose_block(update: Update, context: CallbackContext):
 
     try:
         chosen_block, chosen_section = map(lambda x: x.strip(), user_reply.split('|'))
-        chosen_section = CURRENT_EVENT.sections.get(name=chosen_section)
+        chosen_section = current_event.sections.get(name=chosen_section)
         chosen_block = chosen_section.blocks.get(name=chosen_block)
 
         blocks_keyboard = [[f'{block.name} | {chosen_section.name}'] for block in chosen_section.blocks.all()]
@@ -163,7 +168,8 @@ def choose_block(update: Update, context: CallbackContext):
 
 def choose_section_for_question(update: Update, context: CallbackContext):
     user_reply = update.effective_message.text
-
+    current_event = context.user_data['current_event']
+    sections = context.user_data['sections']
     if user_reply == 'В главное меню':
         update.message.reply_text(
             text='Возврат в Главное меню',
@@ -173,7 +179,7 @@ def choose_section_for_question(update: Update, context: CallbackContext):
 
     if user_reply == 'Назад':
         events_keyboard = list(map(lambda keyboard_row: [button.name for button in keyboard_row],
-                                   chunk(CURRENT_EVENT.sections.all(), 2)))
+                                   chunk(current_event.sections.all(), 2)))
         events_keyboard.append(['В главное меню'])
         update.message.reply_text(
             text='Возврат к списку частей',
@@ -182,7 +188,7 @@ def choose_section_for_question(update: Update, context: CallbackContext):
         return 'CHOOSE_SECTION'
 
     try:
-        chosen_section = SECTIONS.get(name=user_reply)
+        chosen_section = sections.get(name=user_reply)
         possible_blocks = chosen_section.blocks.all()
         blocks_keyboard = [[f'{block.name} | {chosen_section.name}'] for block in chosen_section.blocks.all()]
         blocks_keyboard.append(['В главное меню', 'Назад'])
@@ -202,6 +208,7 @@ def choose_section_for_question(update: Update, context: CallbackContext):
 
 def choose_block_for_question(update: Update, context: CallbackContext):
     user_reply = update.effective_message.text
+    current_event = context.user_data['current_event']
     if user_reply == 'В главное меню':
         update.message.reply_text(
             text='Возврат в Главное меню',
@@ -211,7 +218,7 @@ def choose_block_for_question(update: Update, context: CallbackContext):
 
     if user_reply == 'Назад':
         events_keyboard = list(map(lambda keyboard_row: [button.name for button in keyboard_row],
-                                   chunk(CURRENT_EVENT.sections.all(), 2)))
+                                   chunk(current_event.sections.all(), 2)))
         events_keyboard.append(['В главное меню'])
         update.message.reply_text(
             text='Возврат к списку частей',
@@ -221,7 +228,7 @@ def choose_block_for_question(update: Update, context: CallbackContext):
 
     try:
         chosen_block, chosen_section = map(lambda x: x.strip(), user_reply.split('|'))
-        chosen_section = CURRENT_EVENT.sections.get(name=chosen_section)
+        chosen_section = current_event.sections.get(name=chosen_section)
         chosen_block = chosen_section.blocks.get(name=chosen_block)
 
         author_keyboard = [[f'{block.speaker} | {block.name}'] for block in chosen_section.blocks.all()]
@@ -244,7 +251,7 @@ def choose_block_for_question(update: Update, context: CallbackContext):
 
 def choose_speaker(update: Update, context: CallbackContext):
     user_reply = update.message.text
-
+    current_event = context.user_data['current_event']
     if user_reply == 'В главное меню':
         update.message.reply_text(
             text='Возврат в Главное меню',
@@ -254,7 +261,7 @@ def choose_speaker(update: Update, context: CallbackContext):
 
     if user_reply == 'Назад':
         chosen_block, chosen_section = map(lambda x: x.strip(), user_reply.split('|'))
-        chosen_section = CURRENT_EVENT.sections.get(name=chosen_section)
+        chosen_section = current_event.sections.get(name=chosen_section)
         chosen_block = chosen_section.blocks.get(name=chosen_block)
         blocks_keyboard = [[f'{block.name} | {chosen_section.name}'] for block in chosen_section.blocks.all()]
         blocks_keyboard.append(['В главное меню', 'Назад'])
@@ -282,6 +289,7 @@ def choose_speaker(update: Update, context: CallbackContext):
 
 def ask_question(update: Update, context: CallbackContext):
     user_reply = update.effective_message.text
+    current_event = context.user_data['current_event']
     if user_reply == 'В главное меню':
         update.message.reply_text(
             text='Возврат в Главное меню',
@@ -290,7 +298,7 @@ def ask_question(update: Update, context: CallbackContext):
         return 'MAIN_MENU'
     if user_reply == 'Назад':
         chosen_block, chosen_section = map(lambda x: x.strip(), user_reply.split('|'))
-        chosen_section = CURRENT_EVENT.sections.get(name=chosen_section)
+        chosen_section = current_event.sections.get(name=chosen_section)
         chosen_block = chosen_section.blocks.get(name=chosen_block)
 
         author_keyboard = [[f'{block.speaker} | {block.name}'] for block in chosen_section.blocks.all()]
@@ -383,9 +391,10 @@ def registration_end(update: Update, context: CallbackContext):
 
 def donate(update: Update, context: CallbackContext):
     payment_sum = validate_sum(update.message.text)
-
+    
     chat_id = update.message.chat_id
-    title = f"Донат мероприятию {CURRENT_EVENT}"
+    current_event = context.user_data['current_event']
+    title = f"Донат мероприятию {current_event}"
     description = "Добровольное пожертвование организаторам мероприятию"
     payload = "Custom-Payload"
     currency = "RUB"
@@ -447,7 +456,7 @@ def handle_user_reply(update: Update, context: CallbackContext):
         'CHOOSE_SECTION_FOR_QUESTION': choose_section_for_question,
         'CHOOSE_BLOCK_FOR_QUESTION': choose_block_for_question,
         'CHOOSE_SPEAKER': choose_speaker,
-        'ASK_QUESTION': ask_question
+        'ASK_QUESTION': ask_question,
     }
 
     state_handler = states_functions[user_state]
@@ -467,6 +476,7 @@ def main():
     dispatcher.add_handler(PreCheckoutQueryHandler(precheckout_callback))
     dispatcher.add_handler(MessageHandler(Filters.successful_payment, successful_payment_callback))
     updater.start_polling()
+    updater.idle()
 
 
 if __name__ == '__main__':
