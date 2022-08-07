@@ -34,13 +34,23 @@ def start(update: Update, context: CallbackContext):
     organizer, _ = Access.objects.get_or_create(level="Организатор")
     moderator, _ = Access.objects.get_or_create(level="Модератор")
 
-    user, created =BotUser.objects.get_or_create(telegram_id=update.message.from_user.id)
-    if created:
-        Participant.objects.create(
-            user=user,
-            event=current_event,
-            level=visitor,
-        )
+    user, _ = BotUser.objects.get_or_create(telegram_id=update.message.from_user.id)
+    context.user_data['participant'], _ = Participant.objects.get_or_create(
+        user=user,
+        event=current_event,
+        defaults={'level': visitor},
+    )
+    if context.user_data['participant'].level == speaker:
+        main_menu_keyboard = [
+            ['Программа', 'Задать вопрос спикеру', 'Познакомиться'],
+            ['Донат'],
+            ['Посмотреть присланные вопросы'],
+        ]
+    else:
+        main_menu_keyboard = [
+            ['Программа', 'Задать вопрос спикеру', 'Познакомиться'],
+            ['Донат'],
+        ]
     update.message.reply_text(
         text='Здравствуйте. Это официальный бот по поддержке участников 🤖.',
         reply_markup=ReplyKeyboardMarkup(main_menu_keyboard, resize_keyboard=True, one_time_keyboard=True)
@@ -81,6 +91,14 @@ def main_menu(update: Update, context: CallbackContext):
             text='Напишите, какую сумму вы хотели бы пожертвовать'
         )
         return 'DONATION'
+
+    elif user_reply == 'Посмотреть присланные вопросы':
+        for question in context.user_data['participant'].got_questions.all():
+            update.message.reply_text(
+                text=f'Вопрос от {question.participant.user}\n{question.text}',
+                reply_markup=ReplyKeyboardMarkup([['Главное меню']], resize_keyboard=True, one_time_keyboard=True)
+            )
+        return 'REGISTRATION'
 
 
 def choose_section(update: Update, context: CallbackContext):
@@ -226,27 +244,27 @@ def choose_block_for_question(update: Update, context: CallbackContext):
             )
         return 'CHOOSE_SECTION_FOR_QUESTION'
 
-    try:
-        chosen_block, chosen_section = map(lambda x: x.strip(), user_reply.split('|'))
-        chosen_section = current_event.sections.get(name=chosen_section)
-        chosen_block = chosen_section.blocks.get(name=chosen_block)
+    # try:
+    chosen_block, chosen_section = map(lambda x: x.strip(), user_reply.split('|'))
+    chosen_section = current_event.sections.get(name=chosen_section)
+    chosen_block = chosen_section.blocks.get(name=chosen_block)
 
-        author_keyboard = [[f'{block.speaker} | {block.name}'] for block in chosen_section.blocks.all()]
-        author_keyboard.append(['В главное меню', 'Назад'])
-        update.message.reply_text(text='Выберите спикера, которому хотите задать вопрос',
-                                  parse_mode=ParseMode.MARKDOWN,
-                                  reply_markup=ReplyKeyboardMarkup(author_keyboard,
-                                                                   resize_keyboard=True,
-                                                                   one_time_keyboard=True))
+    author_keyboard = [[f'{presentation.speaker.user} | {presentation.name}'] for presentation in chosen_block.presentations.all()]
+    author_keyboard.append(['В главное меню', 'Назад'])
+    update.message.reply_text(text='Выберите спикера, которому хотите задать вопрос',
+                                parse_mode=ParseMode.MARKDOWN,
+                                reply_markup=ReplyKeyboardMarkup(author_keyboard,
+                                                                resize_keyboard=True,
+                                                                one_time_keyboard=True))
 
-        return 'CHOOSE_SPEAKER'
+    return 'CHOOSE_SPEAKER'
 
-    except Exception:
-        update.message.reply_text(text='Ошибка ❌',
-                                  reply_markup=ReplyKeyboardMarkup(main_menu_keyboard, resize_keyboard=True,
-                                                                   one_time_keyboard=True)
-                                  )
-        return 'MAIN_MENU'
+    # except Exception:
+    #     update.message.reply_text(text='Ошибка ❌',
+    #                               reply_markup=ReplyKeyboardMarkup(main_menu_keyboard, resize_keyboard=True,
+    #                                                                one_time_keyboard=True)
+    #                               )
+    #     return 'MAIN_MENU'
 
 
 def choose_speaker(update: Update, context: CallbackContext):
@@ -271,15 +289,10 @@ def choose_speaker(update: Update, context: CallbackContext):
             )
         return 'CHOOSE_BLOCK_FOR_QUESTION'
 
-    user = BotUser.objects.get(telegram_id=update.effective_message.from_user.id)
-    message_from = Participant.objects.get(user=user)
-    level, name, last_name = user_reply.split("|")[0].strip().split()
-    speaker_user = BotUser.objects.filter(name=name, surname=last_name)
-    message_for = Participant.objects.get(user=speaker_user[0])
-
-    Question.objects.create(
-        user=message_from,
-        speaker=message_for
+    name, surname = user_reply.split("|")[0].strip().split()
+    context.user_data['speaker'] = Participant.objects.get(
+        user__name=name,
+        user__surname=surname,
     )
     update.message.reply_text(
         text='Напишите пожалуйста вопрос'
@@ -301,7 +314,7 @@ def ask_question(update: Update, context: CallbackContext):
         chosen_section = current_event.sections.get(name=chosen_section)
         chosen_block = chosen_section.blocks.get(name=chosen_block)
 
-        author_keyboard = [[f'{block.speaker} | {block.name}'] for block in chosen_section.blocks.all()]
+        author_keyboard = [[f'{presentation.speaker.user} | {presentation.name}'] for presentation in chosen_block.presentations]
         author_keyboard.append(['В главное меню', 'Назад'])
         update.message.reply_text(text='Выберите спикера, которому хотите задать вопрос',
                                   parse_mode=ParseMode.MARKDOWN,
@@ -311,11 +324,16 @@ def ask_question(update: Update, context: CallbackContext):
 
         return 'CHOOSE_SPEAKER'
     
-    user = BotUser.objects.get(telegram_id=update.effective_message.from_user.id)
-    message_from = Participant.objects.get(user=user)
-    question = Question.objects.get(user=message_from)
-    question.text = user_reply
-    question.save()
+    text = user_reply
+    participant = Participant.objects.get(
+        user__telegram_id=update.effective_message.from_user.id
+    )
+    speaker = context.user_data['speaker']
+    Question.objects.create(
+        text=text,
+        participant=participant,
+        speaker=speaker,
+    )
     update.message.reply_text(
         text='Ваш вопрос отправлен спикеру.',
         reply_markup=ReplyKeyboardMarkup(main_menu_keyboard, resize_keyboard=True, one_time_keyboard=True)

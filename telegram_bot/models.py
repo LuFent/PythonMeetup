@@ -133,7 +133,7 @@ class Block(models.Model):
     start_time = models.TimeField('Время начала')
     finish_time = models.TimeField('Время завершения')
     moderator = models.ForeignKey(
-        BotUser,
+        Participant,
         related_name='moderating_blocks',
         verbose_name='Модератор',
         null=True,
@@ -146,16 +146,7 @@ class Block(models.Model):
         verbose_name='Секция',
         null=True,
         blank=True,
-        on_delete=models.RESTRICT,
-    )
-
-    speaker = models.ForeignKey(
-        Participant,
-        verbose_name='Спикер',
-        related_name='speaker',
         on_delete=models.CASCADE,
-        blank=True,
-        null=True
     )
 
     class Meta:
@@ -170,7 +161,7 @@ class Presentation(models.Model):
     name = models.CharField('Название', max_length=50)
     info = models.TextField('Подробная информация', blank=True)
     speaker = models.ForeignKey(
-        BotUser,
+        Participant,
         related_name='presentations',
         verbose_name='Спикер',
         on_delete=models.CASCADE,
@@ -179,7 +170,7 @@ class Presentation(models.Model):
         Block,
         related_name='presentations',
         verbose_name='Блок',
-        on_delete=models.RESTRICT,
+        on_delete=models.CASCADE,
     )
 
     class Meta:
@@ -239,10 +230,10 @@ class Donation(models.Model):
 
 class Question(models.Model):
     text = models.TextField('Текст вопроса', blank=True)
-    user = models.ForeignKey(
+    participant = models.ForeignKey(
         Participant,
         verbose_name='От кого вопрос',
-        related_name='question_from',
+        related_name='asked_questions',
         on_delete=models.CASCADE,
         blank=True,
         null=True
@@ -250,9 +241,13 @@ class Question(models.Model):
     speaker = models.ForeignKey(
         Participant,
         verbose_name='Вопрос кому',
-        related_name='question_for',
+        related_name='got_questions',
         on_delete=models.CASCADE
     )
+
+    class Meta:
+        verbose_name = 'Вопрос'
+        verbose_name_plural = 'Вопросы'
 
     def __str__(self):
         return f'Вопрос для {self.speaker.user}'
