@@ -8,7 +8,7 @@ from telegram.ext import Filters
 from telegram.ext import CallbackContext
 from telegram.ext import Updater, filters
 from telegram.ext import CommandHandler, MessageHandler, CallbackQueryHandler, PreCheckoutQueryHandler
-from telegram import ReplyKeyboardMarkup, ParseMode, LabeledPrice
+from telegram import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, ParseMode, LabeledPrice
 from .models import *
 from .bot_tools import *
 
@@ -59,8 +59,22 @@ def start(update: Update, context: CallbackContext):
 
 
 def main_menu(update: Update, context: CallbackContext):
-    user_reply = update.effective_message.text
     current_event = context.user_data['current_event']
+    participant = context.user_data['participant']
+    if update.callback_query:
+        user_reply = update.callback_query.data
+        # chat_id = update.callback_query.message.chat_id
+        # contact = update.effective_message.contact
+        # update.effective_chat.send_contact()
+        reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton("Посмотреть контакт", url=f'tg://User?id={participant.user.telegram_id}')]])
+        context.bot.send_message(
+            user_reply,
+            text=f'С вами хочет пообщаться {participant.user.name} {participant.user.surname}\n{participant.user.company}\n{participant.user.position}',
+            reply_markup=reply_markup,
+        )
+
+        return 'MAIN_MENU'
+    user_reply = update.effective_message.text
     if user_reply == 'Программа':
         events_keyboard = list(map(lambda keyboard_row: [button.name for button in keyboard_row], chunk(current_event.sections.all(), 2)))
         events_keyboard.append(['В главное меню'])
@@ -80,11 +94,26 @@ def main_menu(update: Update, context: CallbackContext):
         return 'CHOOSE_SECTION_FOR_QUESTION'
 
     elif user_reply == 'Познакомиться':
-        update.message.reply_text(
-            text='Введите пожалуйста название компании, в которой вы работаете.',
-            reply_markup=ReplyKeyboardMarkup([['Главное меню']], resize_keyboard=True, one_time_keyboard=True)
-        )
-        return 'REGISTRATION'
+        if not participant.user.position:
+            update.message.reply_text(
+                text='Введите пожалуйста название компании, в которой вы работаете.',
+                reply_markup=ReplyKeyboardMarkup([['Главное меню']], resize_keyboard=True, one_time_keyboard=True)
+            )
+            return 'REGISTRATION'
+        for user in BotUser.objects.all():
+            if user.position and user != participant.user:
+                text = f'{user.name} {user.surname}\n{user.company}\n{user.position}'
+                reply_markup = InlineKeyboardMarkup(
+                    [[InlineKeyboardButton(
+                        "Предложить пообщаться",
+                        callback_data=user.telegram_id),
+                    ]])
+                update.message.reply_text(
+                    text=text,
+                    reply_markup=reply_markup,
+                )
+        return 'MAIN_MENU'
+            
 
     elif user_reply == 'Донат':
         update.message.reply_text(
@@ -405,7 +434,7 @@ def registration_end(update: Update, context: CallbackContext):
         user.position = user_reply
         user.save()
         update.message.reply_text(
-            text='Вы успешно зарегистрированы.',
+            text='Вы успешно зарегистрированы. Чтобы познакомиться, нажмите кнопку "Познакомиться" еще раз.',
             reply_markup=ReplyKeyboardMarkup(main_menu_keyboard, resize_keyboard=True, one_time_keyboard=True)
         )
         return 'MAIN_MENU'
