@@ -358,19 +358,23 @@ def registration(update: Update, context: CallbackContext):
         user = BotUser.objects.get(
             telegram_id=user_telegram_id
         )
+
+
+        if user.position:
+            re_registrate_keyboard = [['Изменить имя', 'Изменить фамилию'], ['Изменить компанию', 'Изменить Должность']]
+            update.message.reply_text(
+                text=f'Вы уже зарегистрированы со следующими данными: \
+                    {user.name} {user.surname} \
+                    \nРаботаете в {user.company} на должности {user.position} ',
+
+                reply_markup=ReplyKeyboardMarkup(re_registrate_keyboard, resize_keyboard=True, one_time_keyboard=True)
+            )
+            return 'RE_REGISTRATE'
+
         user.name = user_name
         user.surname = user_lastname
         user.company = user_reply
         user.save()
-
-        if user.position:
-            update.message.reply_text(
-                text=f'Вы уже зарегистрированы со следующими данными: \
-                    {user.name} {user.surname} \
-                    \nРаботаете в {user.company} на должности {user.position}',
-                reply_markup=ReplyKeyboardMarkup(main_menu_keyboard, resize_keyboard=True, one_time_keyboard=True)
-            )
-            return 'MAIN_MENU'
 
 
         update.message.reply_text(
@@ -405,6 +409,81 @@ def registration_end(update: Update, context: CallbackContext):
             reply_markup=ReplyKeyboardMarkup(main_menu_keyboard, resize_keyboard=True, one_time_keyboard=True)
         )
         return 'MAIN_MENU'
+
+
+def re_registrate(update: Update, context: CallbackContext):
+    user_reply = update.message.text
+
+    if user_reply == 'Изменить имя':
+        update.message.reply_text(text='Введите имя')
+        return 'CHANGE_NAME'
+
+    if user_reply == 'Изменить фамилию':
+        update.message.reply_text(text='Введите фамилию')
+        return 'CHANGE_SURNAME'
+
+    if user_reply == 'Изменить компанию':
+        update.message.reply_text(text='Введите компанию')
+        return 'CHANGE_COMPANY'
+
+    if user_reply == 'Изменить должность':
+        update.message.reply_text(text='Введите должность')
+        return 'CHANGE_POSITION'
+
+
+def change_name(update: Update, context: CallbackContext):
+    user_reply = update.message.text
+
+    user_telegram_id = update.message.from_user.id
+
+    user = BotUser.objects.get(
+        telegram_id=user_telegram_id
+    )
+
+    user.name = user_reply
+    user.save()
+    update.message.reply_text(text='Имя изменено')
+
+def change_surname(update: Update, context: CallbackContext):
+    user_reply = update.message.text
+
+    user_telegram_id = update.message.from_user.id
+
+    user = BotUser.objects.get(
+        telegram_id=user_telegram_id
+    )
+
+    user.surname = user_reply
+    user.save()
+    update.message.reply_text(text='Фамилия изменено')
+
+
+def change_company(update: Update, context: CallbackContext):
+    user_reply = update.message.text
+
+    user_telegram_id = update.message.from_user.id
+
+    user = BotUser.objects.get(
+        telegram_id=user_telegram_id
+    )
+
+    user.company = user_reply
+    user.save()
+    update.message.reply_text(text='Компания изменено')
+
+
+def change_position(update: Update, context: CallbackContext):
+    user_reply = update.message.text
+
+    user_telegram_id = update.message.from_user.id
+
+    user = BotUser.objects.get(
+        telegram_id=user_telegram_id
+    )
+
+    user.position = user_reply
+    user.save()
+    update.message.reply_text(text='Должность изменена')
 
 
 def donate(update: Update, context: CallbackContext):
@@ -475,6 +554,12 @@ def handle_user_reply(update: Update, context: CallbackContext):
         'CHOOSE_BLOCK_FOR_QUESTION': choose_block_for_question,
         'CHOOSE_SPEAKER': choose_speaker,
         'ASK_QUESTION': ask_question,
+        'RE_REGISTRATE': re_registrate,
+        'CHANGE_NAME': change_name,
+        'CHANGE_SURNAME': change_surname,
+        'CHANGE_COMPANY': change_company,
+        'CHANGE_POSITION': change_position,
+
     }
 
     state_handler = states_functions[user_state]
