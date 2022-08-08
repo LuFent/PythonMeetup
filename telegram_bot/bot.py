@@ -361,7 +361,7 @@ def registration(update: Update, context: CallbackContext):
 
 
         if user.position:
-            re_registrate_keyboard = [['Изменить имя', 'Изменить фамилию'], ['Изменить компанию', 'Изменить Должность']]
+            re_registrate_keyboard = [['Изменить имя', 'Изменить фамилию'], ['Изменить компанию', 'Изменить должность']]
             update.message.reply_text(
                 text=f'Вы уже зарегистрированы со следующими данными: \
                     {user.name} {user.surname} \
@@ -442,7 +442,12 @@ def change_name(update: Update, context: CallbackContext):
 
     user.name = user_reply
     user.save()
-    update.message.reply_text(text='Имя изменено')
+    update.message.reply_text(
+        text='Имя изменено',
+        reply_markup=ReplyKeyboardMarkup(main_menu_keyboard, resize_keyboard=True, one_time_keyboard=True)
+    )
+    return 'MAIN_MENU'
+
 
 def change_surname(update: Update, context: CallbackContext):
     user_reply = update.message.text
@@ -455,7 +460,11 @@ def change_surname(update: Update, context: CallbackContext):
 
     user.surname = user_reply
     user.save()
-    update.message.reply_text(text='Фамилия изменено')
+    update.message.reply_text(
+        text='Фамилия изменена',
+        reply_markup=ReplyKeyboardMarkup(main_menu_keyboard, resize_keyboard=True, one_time_keyboard=True)
+    )
+    return 'MAIN_MENU'
 
 
 def change_company(update: Update, context: CallbackContext):
@@ -469,7 +478,11 @@ def change_company(update: Update, context: CallbackContext):
 
     user.company = user_reply
     user.save()
-    update.message.reply_text(text='Компания изменено')
+    update.message.reply_text(
+        text='Компания изменена',
+        reply_markup=ReplyKeyboardMarkup(main_menu_keyboard, resize_keyboard=True, one_time_keyboard=True)
+    )
+    return 'MAIN_MENU'
 
 
 def change_position(update: Update, context: CallbackContext):
@@ -483,7 +496,11 @@ def change_position(update: Update, context: CallbackContext):
 
     user.position = user_reply
     user.save()
-    update.message.reply_text(text='Должность изменена')
+    update.message.reply_text(
+        text='Должность изменена',
+        reply_markup=ReplyKeyboardMarkup(main_menu_keyboard, resize_keyboard=True, one_time_keyboard=True)
+    )
+    return 'MAIN_MENU'
 
 
 def donate(update: Update, context: CallbackContext):
