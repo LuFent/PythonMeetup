@@ -2,8 +2,8 @@ from email import message
 from dotenv import load_dotenv
 import os
 from django.conf import settings
+from random import shuffle
 from telegram import KeyboardButton, Update
-import telegram
 from telegram.ext import Filters
 from telegram.ext import CallbackContext
 from telegram.ext import Updater, filters
@@ -60,20 +60,7 @@ def start(update: Update, context: CallbackContext):
 
 def main_menu(update: Update, context: CallbackContext):
     current_event = context.user_data['current_event']
-    participant = context.user_data['participant']
-    if update.callback_query:
-        user_reply = update.callback_query.data
-        # chat_id = update.callback_query.message.chat_id
-        # contact = update.effective_message.contact
-        # update.effective_chat.send_contact()
-        reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton("Посмотреть контакт", url=f'tg://User?id={participant.user.telegram_id}')]])
-        context.bot.send_message(
-            user_reply,
-            text=f'С вами хочет пообщаться {participant.user.name} {participant.user.surname}\n{participant.user.company}\n{participant.user.position}',
-            reply_markup=reply_markup,
-        )
-
-        return 'MAIN_MENU'
+    participant = Participant.objects.get(user__telegram_id=update.effective_chat.id)
     user_reply = update.effective_message.text
     if user_reply == 'Программа':
         events_keyboard = list(map(lambda keyboard_row: [button.name for button in keyboard_row], chunk(current_event.sections.all(), 2)))
@@ -100,19 +87,18 @@ def main_menu(update: Update, context: CallbackContext):
                 reply_markup=ReplyKeyboardMarkup([['Главное меню']], resize_keyboard=True, one_time_keyboard=True)
             )
             return 'REGISTRATION'
-        for user in BotUser.objects.all():
-            if user.position and user != participant.user:
-                text = f'{user.name} {user.surname}\n{user.company}\n{user.position}'
-                reply_markup = InlineKeyboardMarkup(
-                    [[InlineKeyboardButton(
-                        "Предложить пообщаться",
-                        callback_data=user.telegram_id),
-                    ]])
-                update.message.reply_text(
-                    text=text,
-                    reply_markup=reply_markup,
-                )
-        return 'MAIN_MENU'
+        other_users = list(BotUser.objects.exclude(telegram_id=participant.user.telegram_id).exclude(position=''))
+        shuffle(other_users)
+        if not other_users:
+            update.message.reply_text(
+                text='Еще никто не изъявил желания общаться',
+                reply_markup=ReplyKeyboardMarkup(main_menu_keyboard, resize_keyboard=True, one_time_keyboard=True)
+            )
+            return 'MAIN_MENU'
+        context.user_data['users_for_dialog'] = other_users
+        context.user_data['user_index'] = 0
+        send_invitation(update, context)
+        return 'SEND_INVITATION'
             
 
     elif user_reply == 'Донат':
@@ -532,6 +518,51 @@ def change_position(update: Update, context: CallbackContext):
     return 'MAIN_MENU'
 
 
+def send_invitation(update: Update, context: CallbackContext):
+    other_users = context.user_data['users_for_dialog']
+    if update.callback_query:
+        if update.callback_query.data != 'Посмотреть следующего':
+            participant = Participant.objects.get(user__telegram_id=update.effective_chat.id)
+            collegue_telegram_id = update.callback_query.data
+            reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton("Посмотреть контакт", url=f'tg://User?id={participant.user.telegram_id}')]])
+            context.bot.send_message(
+                collegue_telegram_id,
+                text=f'С вами хочет пообщаться {participant.user.name} {participant.user.surname}\n{participant.user.company}\n{participant.user.position}',
+                reply_markup=reply_markup,
+            )
+
+            return 'MAIN_MENU'
+        context.user_data['user_index'] += 1
+    user_index = context.user_data['user_index']
+    if user_index == len(other_users):
+        context.bot.send_message(
+            update.effective_chat.id,
+            text='Это был последний желающий',
+            reply_markup=ReplyKeyboardMarkup(main_menu_keyboard, resize_keyboard=True, one_time_keyboard=True)
+        )
+        return 'MAIN_MENU'
+    collegue = other_users[user_index]
+    text = f'{collegue.name} {collegue.surname}\n{collegue.company}\n{collegue.position}'
+    reply_markup = InlineKeyboardMarkup(
+        [
+            [InlineKeyboardButton(
+                'Предложить пообщаться',
+                callback_data=collegue.telegram_id,
+            )],
+            [InlineKeyboardButton(
+                'Посмотреть следующего',
+                callback_data='Посмотреть следующего',
+            )],
+        ]
+    )
+    context.bot.send_message(
+        update.effective_chat.id,
+        text=text,
+        reply_markup=reply_markup,
+    )
+    return 'SEND_INVITATION'
+
+
 def donate(update: Update, context: CallbackContext):
     payment_sum = validate_sum(update.message.text)
     
@@ -610,6 +641,7 @@ def handle_user_reply(update: Update, context: CallbackContext):
         'CHANGE_SURNAME': change_surname,
         'CHANGE_COMPANY': change_company,
         'CHANGE_POSITION': change_position,
+        'SEND_INVITATION': send_invitation,
 
     }
 
