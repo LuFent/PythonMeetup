@@ -539,6 +539,11 @@ def successful_payment_callback(update: Update, context: CallbackContext):
         text='Спасибо за пожертвование <3',
         reply_markup=ReplyKeyboardMarkup(main_menu_keyboard, resize_keyboard=True, one_time_keyboard=True)
     )
+    participant = BotUser.objects.get(telegram_id=update.message.from_user.id).participation
+    current_event = context.user_data['current_event']
+    sum_ = update.message['successful_payment']['total_amount']/100
+    Donation.objects.create(participant=participant, event=current_event, reject=False, amount=sum_)
+
     return 'MAIN_MENU'
 
 
