@@ -29,7 +29,7 @@ YOO_MONEY_TOKEN = os.getenv('YOO_MONEY_TOKEN')
 SECRET_KEY = 'django-insecure-!puuve)z+2porja0u_gi**_8b@0h*bk!*fofad0ns5617iqxtk'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DEBUG', True)
 
 ALLOWED_HOSTS = []
 
