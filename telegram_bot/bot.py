@@ -684,7 +684,6 @@ def handle_user_reply(update: Update, context: CallbackContext):
         'CHANGE_COMPANY': change_company,
         'CHANGE_NAME': change_name,
         'CHANGE_SURNAME': change_surname
-        
     }
 
     state_handler = states_functions[user_state]
