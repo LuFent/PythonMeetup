@@ -676,6 +676,10 @@ def handle_user_reply(update: Update, context: CallbackContext):
         'CHOOSE_BLOCK_FOR_QUESTION': choose_block_for_question,
         'CHOOSE_SPEAKER': choose_speaker,
         'ASK_QUESTION': ask_question,
+        'SEND_INVITATION': send_invitation,
+        'ACCEPT_ANSWERING': accept_answering,
+        'ANSWER_QUESTION': answer_question,
+
     }
 
     state_handler = states_functions[user_state]
