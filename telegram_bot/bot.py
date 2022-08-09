@@ -142,11 +142,12 @@ def answer_question(update: Update, context: CallbackContext):
             ['Посмотреть присланные вопросы'],
         ]
     message_for = BotUser.objects.get(id=user_to_answer_id['current_user'])
+    question = Question.objects.get(participant=Participant.objects.get(user=message_for))
 
     if user_reply:
         context.bot.send_message(
             chat_id=message_for.telegram_id,
-            text = user_reply
+            text = f'Ответ на вопрос "{question.text}": {user_reply}'
         )
         user_to_answer_id.clear()
         update.message.reply_text(
@@ -676,6 +677,14 @@ def handle_user_reply(update: Update, context: CallbackContext):
         'CHOOSE_BLOCK_FOR_QUESTION': choose_block_for_question,
         'CHOOSE_SPEAKER': choose_speaker,
         'ASK_QUESTION': ask_question,
+        'ACCEPT_ANSWERING': accept_answering,
+        'ANSWER_QUESTION': answer_question,
+        'SEND_INVITATION': send_invitation,
+        'CHANGE_POSITION': change_position,
+        'CHANGE_COMPANY': change_company,
+        'CHANGE_NAME': change_name,
+        'CHANGE_SURNAME': change_surname
+        
     }
 
     state_handler = states_functions[user_state]
