@@ -8,9 +8,10 @@ from telegram.ext import Filters
 from telegram.ext import CallbackContext
 from telegram.ext import Updater, filters
 from telegram.ext import CommandHandler, MessageHandler, CallbackQueryHandler, PreCheckoutQueryHandler
-from telegram import ReplyKeyboardMarkup, ParseMode, LabeledPrice
+from telegram import ReplyKeyboardMarkup, ParseMode, LabeledPrice, InlineKeyboardMarkup, InlineKeyboardButton
 from .models import *
 from .bot_tools import *
+import functools
 
 
 states_database = {}
@@ -18,6 +19,7 @@ main_menu_keyboard = [['Программа', 'Задать вопрос спик
 contact_keyboard = [['Отправить контакты', 'Не отправлять контакты']]
 accept_keyboard = [['Разрешить сохранение своих данных', 'Отказать от сохранения']]
 
+user_to_answer_id = {}
 
 def start(update: Update, context: CallbackContext):
     current_event = Event.objects.get_current()
@@ -94,11 +96,49 @@ def main_menu(update: Update, context: CallbackContext):
 
     elif user_reply == 'Посмотреть присланные вопросы':
         for question in context.user_data['participant'].got_questions.all():
+            
             update.message.reply_text(
                 text=f'Вопрос от {question.participant.user}\n{question.text}',
-                reply_markup=ReplyKeyboardMarkup([['Главное меню']], resize_keyboard=True, one_time_keyboard=True)
+                reply_markup=InlineKeyboardMarkup(
+                    [[InlineKeyboardButton('Ответить', callback_data=f'{question.participant.user.id}|answer')]]
+                )
             )
-        return 'REGISTRATION'
+            
+        return 'ACCEPT_ANSWERING'
+
+
+def accept_answering(update: Update, context: CallbackContext):
+    user_data = update.callback_query.data
+    
+    user_to_answer_id.update({'current_user': user_data.split('|')[0]})
+    if user_data:
+        update.effective_message.reply_text(
+            text=f'Введите ответ на сообщение'
+        )
+        return 'ANSWER_QUESTION'
+
+
+def answer_question(update: Update, context: CallbackContext):
+    user_reply = update.effective_message.text
+
+    main_menu_keyboard = [
+            ['Программа', 'Задать вопрос спикеру', 'Познакомиться'],
+            ['Донат'],
+            ['Посмотреть присланные вопросы'],
+        ]
+    message_for = BotUser.objects.get(id=user_to_answer_id['current_user'])
+
+    if user_reply:
+        context.bot.send_message(
+            chat_id=message_for.telegram_id,
+            text = user_reply
+        )
+        user_to_answer_id.clear()
+        update.message.reply_text(
+            text='Ваше сообщение отправлено пользователю',
+            reply_markup=ReplyKeyboardMarkup(main_menu_keyboard, resize_keyboard=True, one_time_keyboard=True)
+            )
+        return 'MAIN_MENU'
 
 
 def choose_section(update: Update, context: CallbackContext):
@@ -277,17 +317,17 @@ def choose_speaker(update: Update, context: CallbackContext):
             )
         return 'MAIN_MENU'
 
-    if user_reply == 'Назад':
-        chosen_block, chosen_section = map(lambda x: x.strip(), user_reply.split('|'))
-        chosen_section = current_event.sections.get(name=chosen_section)
-        chosen_block = chosen_section.blocks.get(name=chosen_block)
-        blocks_keyboard = [[f'{block.name} | {chosen_section.name}'] for block in chosen_section.blocks.all()]
-        blocks_keyboard.append(['В главное меню', 'Назад'])
-        update.message.reply_text(
-            text='Возврат к списку блоков',
-            reply_markup=ReplyKeyboardMarkup(blocks_keyboard, resize_keyboard=True, one_time_keyboard=True)
-            )
-        return 'CHOOSE_BLOCK_FOR_QUESTION'
+    # if user_reply == 'Назад':
+    #     chosen_block, chosen_section = map(lambda x: x.strip(), user_reply.split('|'))
+    #     chosen_section = current_event.sections.get(name=chosen_section)
+    #     chosen_block = chosen_section.blocks.get(name=chosen_block)
+    #     blocks_keyboard = [[f'{block.name} | {chosen_section.name}'] for block in chosen_section.blocks.all()]
+    #     blocks_keyboard.append(['В главное меню', 'Назад'])
+    #     update.message.reply_text(
+    #         text='Возврат к списку блоков',
+    #         reply_markup=ReplyKeyboardMarkup(blocks_keyboard, resize_keyboard=True, one_time_keyboard=True)
+    #         )
+    #     return 'CHOOSE_BLOCK_FOR_QUESTION'
 
     name, surname = user_reply.split("|")[0].strip().split()
     context.user_data['speaker'] = Participant.objects.get(
@@ -475,6 +515,8 @@ def handle_user_reply(update: Update, context: CallbackContext):
         'CHOOSE_BLOCK_FOR_QUESTION': choose_block_for_question,
         'CHOOSE_SPEAKER': choose_speaker,
         'ASK_QUESTION': ask_question,
+        'ACCEPT_ANSWERING': accept_answering,
+        'ANSWER_QUESTION': answer_question
     }
 
     state_handler = states_functions[user_state]
