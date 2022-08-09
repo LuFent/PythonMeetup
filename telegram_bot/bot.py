@@ -2,8 +2,8 @@ from email import message
 from dotenv import load_dotenv
 import os
 from django.conf import settings
+from random import shuffle
 from telegram import KeyboardButton, Update
-import telegram
 from telegram.ext import Filters
 from telegram.ext import CallbackContext
 from telegram.ext import Updater, filters
@@ -61,8 +61,9 @@ def start(update: Update, context: CallbackContext):
 
 
 def main_menu(update: Update, context: CallbackContext):
-    user_reply = update.effective_message.text
     current_event = context.user_data['current_event']
+    participant = Participant.objects.get(user__telegram_id=update.effective_chat.id)
+    user_reply = update.effective_message.text
     if user_reply == 'Программа':
         events_keyboard = list(map(lambda keyboard_row: [button.name for button in keyboard_row], chunk(current_event.sections.all(), 2)))
         events_keyboard.append(['В главное меню'])
@@ -82,11 +83,25 @@ def main_menu(update: Update, context: CallbackContext):
         return 'CHOOSE_SECTION_FOR_QUESTION'
 
     elif user_reply == 'Познакомиться':
-        update.message.reply_text(
-            text='Введите пожалуйста название компании, в которой вы работаете.',
-            reply_markup=ReplyKeyboardMarkup([['Главное меню']], resize_keyboard=True, one_time_keyboard=True)
-        )
-        return 'REGISTRATION'
+        if not participant.user.position:
+            update.message.reply_text(
+                text='Введите пожалуйста название компании, в которой вы работаете.',
+                reply_markup=ReplyKeyboardMarkup([['Главное меню']], resize_keyboard=True, one_time_keyboard=True)
+            )
+            return 'REGISTRATION'
+        other_users = list(BotUser.objects.exclude(telegram_id=participant.user.telegram_id).exclude(position=''))
+        shuffle(other_users)
+        if not other_users:
+            update.message.reply_text(
+                text='Еще никто не изъявил желания общаться',
+                reply_markup=ReplyKeyboardMarkup(main_menu_keyboard, resize_keyboard=True, one_time_keyboard=True)
+            )
+            return 'MAIN_MENU'
+        context.user_data['users_for_dialog'] = other_users
+        context.user_data['user_index'] = 0
+        send_invitation(update, context)
+        return 'SEND_INVITATION'
+            
 
     elif user_reply == 'Донат':
         update.message.reply_text(
@@ -398,19 +413,23 @@ def registration(update: Update, context: CallbackContext):
         user = BotUser.objects.get(
             telegram_id=user_telegram_id
         )
+
+
+        if user.position:
+            re_registrate_keyboard = [['Изменить имя', 'Изменить фамилию'], ['Изменить компанию', 'Изменить должность']]
+            update.message.reply_text(
+                text=f'Вы уже зарегистрированы со следующими данными: \
+                    {user.name} {user.surname} \
+                    \nРаботаете в {user.company} на должности {user.position} ',
+
+                reply_markup=ReplyKeyboardMarkup(re_registrate_keyboard, resize_keyboard=True, one_time_keyboard=True)
+            )
+            return 'RE_REGISTRATE'
+
         user.name = user_name
         user.surname = user_lastname
         user.company = user_reply
         user.save()
-
-        if user.position:
-            update.message.reply_text(
-                text=f'Вы уже зарегистрированы со следующими данными: \
-                    {user.name} {user.surname} \
-                    \nРаботаете в {user.company} на должности {user.position}',
-                reply_markup=ReplyKeyboardMarkup(main_menu_keyboard, resize_keyboard=True, one_time_keyboard=True)
-            )
-            return 'MAIN_MENU'
 
 
         update.message.reply_text(
@@ -441,10 +460,147 @@ def registration_end(update: Update, context: CallbackContext):
         user.position = user_reply
         user.save()
         update.message.reply_text(
-            text='Вы успешно зарегистрированы.',
+            text='Вы успешно зарегистрированы. Чтобы познакомиться, нажмите кнопку "Познакомиться" еще раз.',
             reply_markup=ReplyKeyboardMarkup(main_menu_keyboard, resize_keyboard=True, one_time_keyboard=True)
         )
         return 'MAIN_MENU'
+
+
+def re_registrate(update: Update, context: CallbackContext):
+    user_reply = update.message.text
+
+    if user_reply == 'Изменить имя':
+        update.message.reply_text(text='Введите имя')
+        return 'CHANGE_NAME'
+
+    if user_reply == 'Изменить фамилию':
+        update.message.reply_text(text='Введите фамилию')
+        return 'CHANGE_SURNAME'
+
+    if user_reply == 'Изменить компанию':
+        update.message.reply_text(text='Введите компанию')
+        return 'CHANGE_COMPANY'
+
+    if user_reply == 'Изменить должность':
+        update.message.reply_text(text='Введите должность')
+        return 'CHANGE_POSITION'
+
+
+def change_name(update: Update, context: CallbackContext):
+    user_reply = update.message.text
+
+    user_telegram_id = update.message.from_user.id
+
+    user = BotUser.objects.get(
+        telegram_id=user_telegram_id
+    )
+
+    user.name = user_reply
+    user.save()
+    update.message.reply_text(
+        text='Имя изменено',
+        reply_markup=ReplyKeyboardMarkup(main_menu_keyboard, resize_keyboard=True, one_time_keyboard=True)
+    )
+    return 'MAIN_MENU'
+
+
+def change_surname(update: Update, context: CallbackContext):
+    user_reply = update.message.text
+
+    user_telegram_id = update.message.from_user.id
+
+    user = BotUser.objects.get(
+        telegram_id=user_telegram_id
+    )
+
+    user.surname = user_reply
+    user.save()
+    update.message.reply_text(
+        text='Фамилия изменена',
+        reply_markup=ReplyKeyboardMarkup(main_menu_keyboard, resize_keyboard=True, one_time_keyboard=True)
+    )
+    return 'MAIN_MENU'
+
+
+def change_company(update: Update, context: CallbackContext):
+    user_reply = update.message.text
+
+    user_telegram_id = update.message.from_user.id
+
+    user = BotUser.objects.get(
+        telegram_id=user_telegram_id
+    )
+
+    user.company = user_reply
+    user.save()
+    update.message.reply_text(
+        text='Компания изменена',
+        reply_markup=ReplyKeyboardMarkup(main_menu_keyboard, resize_keyboard=True, one_time_keyboard=True)
+    )
+    return 'MAIN_MENU'
+
+
+def change_position(update: Update, context: CallbackContext):
+    user_reply = update.message.text
+
+    user_telegram_id = update.message.from_user.id
+
+    user = BotUser.objects.get(
+        telegram_id=user_telegram_id
+    )
+
+    user.position = user_reply
+    user.save()
+    update.message.reply_text(
+        text='Должность изменена',
+        reply_markup=ReplyKeyboardMarkup(main_menu_keyboard, resize_keyboard=True, one_time_keyboard=True)
+    )
+    return 'MAIN_MENU'
+
+
+def send_invitation(update: Update, context: CallbackContext):
+    other_users = context.user_data['users_for_dialog']
+    if update.callback_query:
+        if update.callback_query.data != 'Посмотреть следующего':
+            participant = Participant.objects.get(user__telegram_id=update.effective_chat.id)
+            collegue_telegram_id = update.callback_query.data
+            reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton("Посмотреть контакт", url=f'tg://User?id={participant.user.telegram_id}')]])
+            context.bot.send_message(
+                collegue_telegram_id,
+                text=f'С вами хочет пообщаться {participant.user.name} {participant.user.surname}\n{participant.user.company}\n{participant.user.position}',
+                reply_markup=reply_markup,
+            )
+
+            return 'MAIN_MENU'
+        context.user_data['user_index'] += 1
+    user_index = context.user_data['user_index']
+    if user_index == len(other_users):
+        context.bot.send_message(
+            update.effective_chat.id,
+            text='Это был последний желающий',
+            reply_markup=ReplyKeyboardMarkup(main_menu_keyboard, resize_keyboard=True, one_time_keyboard=True)
+        )
+        return 'MAIN_MENU'
+    collegue = other_users[user_index]
+    text = f'{collegue.name} {collegue.surname}\n{collegue.company}\n{collegue.position}'
+    reply_markup = InlineKeyboardMarkup(
+        [
+            [InlineKeyboardButton(
+                'Предложить пообщаться',
+                callback_data=collegue.telegram_id,
+            )],
+            [InlineKeyboardButton(
+                'Посмотреть следующего',
+                callback_data='Посмотреть следующего',
+            )],
+        ]
+    )
+    context.bot.send_message(
+        update.effective_chat.id,
+        text=text,
+        reply_markup=reply_markup,
+    )
+    return 'SEND_INVITATION'
 
 
 def donate(update: Update, context: CallbackContext):
@@ -483,6 +639,11 @@ def successful_payment_callback(update: Update, context: CallbackContext):
         text='Спасибо за пожертвование <3',
         reply_markup=ReplyKeyboardMarkup(main_menu_keyboard, resize_keyboard=True, one_time_keyboard=True)
     )
+    participant = BotUser.objects.get(telegram_id=update.message.from_user.id).participation
+    current_event = context.user_data['current_event']
+    sum_ = update.message['successful_payment']['total_amount']/100
+    Donation.objects.create(participant=participant, event=current_event, reject=False, amount=sum_)
+
     return 'MAIN_MENU'
 
 
@@ -515,8 +676,6 @@ def handle_user_reply(update: Update, context: CallbackContext):
         'CHOOSE_BLOCK_FOR_QUESTION': choose_block_for_question,
         'CHOOSE_SPEAKER': choose_speaker,
         'ASK_QUESTION': ask_question,
-        'ACCEPT_ANSWERING': accept_answering,
-        'ANSWER_QUESTION': answer_question
     }
 
     state_handler = states_functions[user_state]
